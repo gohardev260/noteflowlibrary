@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Notes Library – Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="notes-api.js"></script>
+  <style>
+    :root{
+      --cream: #FFFFFF;
+      --light-cream: #FFFFFF;
+      --brown: #0F172A;
+      --dark-brown: #0F172A;
+      --medium-brown: #3B82F6;
+      --light-brown: #3B82F6;
+      --glass: rgba(59,130,246,0.08);
+      --stroke: rgba(59,130,246,0.15);
+      --shadow: 0 10px 30px rgba(15,23,42,0.15);
+      --card-radius: 18px;
+    }
+    /* Background decorations */
+    .bg-blur{
+      filter: blur(80px);
+      opacity: 0.25;
+      pointer-events: none;
+      animation: float 25s ease-in-out infinite;
+    }
+
+    /* Floating animation for background orbs */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+      25% { transform: translateY(-30px) rotate(90deg) scale(1.1); }
+      50% { transform: translateY(0px) rotate(180deg) scale(1); }
+      75% { transform: translateY(30px) rotate(270deg) scale(0.9); }
+    }
+
+    /* Header entrance animation */
+    @keyframes slide-down {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    header {
+      animation: slide-down 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    /* Admin controls animation */
+    @keyframes fade-in-up {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .admin-controls {
+      animation: fade-in-up 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s both;
+    }
+
+    /* Modal entrance animations */
+    @keyframes modal-fade-in {
+      from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+      }
+      to {
+        opacity: 1;
+        backdrop-filter: blur(8px);
+      }
+    }
+
+    @keyframes modal-scale-in {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .modal.open {
+      display: grid;
+      animation: modal-fade-in 0.3s ease-out;
+    }
+
+    .modal.open .modal-card {
+      animation: modal-scale-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    /* Button shimmer effect */
+    .btn {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    /* Input focus animation */
+    @keyframes input-focus {
+      from {
+        box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.15);
+      }
+      to {
+        box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15);
+      }
+    }
+
+    .input:focus-within {
+      animation: input-focus 0.3s ease-out;
+    }
+
+    /* Tag suggestion animations */
+    @keyframes tag-pop-in {
+      from {
+        opacity: 0;
+        transform: scale(0.8) translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .tag-suggestion {
+      animation: tag-pop-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+
+    /* Success/Error toast animations */
+    @keyframes toast-slide-in {
+      from {
+        opacity: 0;
+        transform: translateX(100%) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
+
+    @keyframes toast-slide-out {
+      from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(100%) scale(0.9);
+      }
+    }
+
+    .toast-enter {
+      animation: toast-slide-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .toast-exit {
+      animation: toast-slide-out 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    /* Loading spinner animation */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    /* Card delete animation */
+    @keyframes card-delete {
+      from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.8) translateY(-20px);
+      }
+    }
+
+    .card-deleting {
+      animation: card-delete 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+
+    /* Pulse animation for counters */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.3); }
+      50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.4); }
+    }
+
+    .pulse-counter {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    /* Gradient text animation */
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .gradient-text {
+      background: linear-gradient(-45deg, var(--medium-brown), var(--brown), #6366f1, var(--medium-brown));
+      background-size: 400% 400%;
+      animation: gradient-shift 4s ease infinite;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Card styles (for displaying notes in admin) */
+    .note-card{
+      border-radius: var(--card-radius);
+      background: var(--light-cream);
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      transform: translateY(0) scale(1);
+      transition: transform 320ms cubic-bezier(.2,.8,.2,1), box-shadow 320ms, border-color 320ms, background 320ms;
+      overflow: hidden;
+    }
+    .note-card:hover{
+      transform: translateY(-6px) scale(1.01);
+      border-color: var(--light-brown);
+      background: #FFFFFF;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.25);
+    }
+
+    /* Image container with aspect ratio and fallback */
+    .image-wrap{
+      position: relative;
+      aspect-ratio: 16/10;
+      background: linear-gradient(135deg, var(--light-brown) 0%, var(--medium-brown) 100%);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+    .image-wrap img{
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 600ms cubic-bezier(.2,.8,.2,1);
+    }
+    .note-card:hover .image-wrap img{
+      transform: scale(1.05);
+    }
+    /* Fallback state if image fails */
+    .image-wrap.img-fallback{
+      background: linear-gradient(135deg, var(--medium-brown), var(--brown));
+    }
+    .image-wrap.img-fallback .fallback-graphic{
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .fallback-graphic{
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--light-cream);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 300ms, transform 300ms;
+    }
+    .fallback-graphic .chip{
+      border: 1px dashed var(--light-cream);
+      border-radius: 12px;
+      padding: 6px 10px;
+      font-size: 12px;
+      background: rgba(15,23,42,0.4);
+    }
+
+    /* Tag styles */
+    .tag{
+      border: 1px solid var(--light-brown);
+      background: rgba(59,130,246,0.15);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--brown);
+      transition: transform 200ms, background 200ms, border-color 200ms;
+      cursor: pointer;
+      user-select: none;
+    }
+    .tag:hover{
+      transform: translateY(-2px);
+      background: rgba(59,130,246,0.25);
+      border-color: var(--medium-brown);
+    }
+
+    /* Buttons */
+    .btn{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--light-brown);
+      background: var(--light-cream);
+      color: var(--brown);
+      transition: transform 200ms, border-color 200ms, background 200ms, box-shadow 200ms;
+      box-shadow: 0 2px 8px rgba(15,23,42,0.15);
+    }
+    .btn:hover{
+      transform: translateY(-2px);
+      border-color: var(--medium-brown);
+      background: #FFFFFF;
+      box-shadow: 0 6px 16px rgba(15,23,42,0.25);
+    }
+    .btn.primary{
+      background: linear-gradient(135deg, var(--medium-brown), var(--brown));
+      color: var(--light-cream);
+      border: none;
+    }
+    .btn.primary:hover{
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+    }
+    .btn.danger{
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #fff;
+      border: none;
+    }
+    .btn.danger:hover{
+      filter: brightness(1.05);
+      transform: translateY(-2px);
+    }
+
+    /* Appear animation */
+    @keyframes float-in{
+      from{opacity: 0; transform: translateY(12px) scale(.98)}
+      to{opacity: 1; transform: translateY(0) scale(1)}
+    }
+    .will-animate{
+      opacity: 0;
+    }
+    .in-view{
+      animation: float-in .6s cubic-bezier(.2,.8,.2,1) forwards;
+    }
+
+    /* Modal */
+    .modal{
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(15,23,42,0.65);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+    }
+    .modal.open{ display: grid; }
+    .modal-card{
+      width: min(1000px, 92vw);
+      max-height: 84vh;
+      overflow: hidden;
+      border-radius: 20px;
+      background: var(--light-cream);
+      border: 1px solid var(--light-brown);
+      box-shadow: 0 30px 80px rgba(15,23,42,0.3);
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    .modal-body{
+      overflow: auto;
+    }
+
+    /* Inputs */
+    .input{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--light-brown);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: #FFFFFF;
+      color: var(--dark-brown);
+      transition: border-color 200ms, background 200ms, box-shadow 200ms;
+      box-shadow: inset 0 1px 0 rgba(15,23,42,0.06);
+    }
+    .input:focus-within{
+      border-color: var(--medium-brown);
+      background: #FFFFFF;
+      box-shadow: 0 0 0 6px rgba(59,130,246,0.15);
+    }
+    .input input, .input select, .input textarea{
+      background: transparent;
+      outline: none;
+      border: none;
+      width: 100%;
+      color: var(--dark-brown);
+    }
+    .input select option{
+      background: var(--light-cream);
+      color: var(--dark-brown);
+    }
+
+    /* Counters */
+    .counter-chip{
+      border: 1px solid var(--light-brown);
+      background: rgba(59,130,246,0.15);
+      color: var(--brown);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+    }
+
+    /* Scrollbar polish */
+    ::-webkit-scrollbar{ height: 10px; width: 10px; }
+    ::-webkit-scrollbar-thumb{ background: var(--light-brown); border-radius: 999px; }
+    ::-webkit-scrollbar-track{ background: transparent; }
+  </style>
+</head>
+<body class="bg-cream text-dark-brown" style="background-color: var(--cream); color: var(--dark-brown);">
+  <!-- Background orbs -->
+  <div class="fixed inset-0 -z-10 overflow-hidden">
+    <div class="absolute -top-24 -left-24 w-[540px] h-[540px] rounded-full bg-blur" style="background-color: var(--light-brown); opacity: 0.15;"></div>
+    <div class="absolute -bottom-24 -right-24 w-[620px] h-[620px] rounded-full bg-blur" style="background-color: var(--medium-brown); opacity: 0.15;"></div>
+  </div>
+
+  <!-- Login Form -->
+  <div id="loginPanel" class="min-h-screen flex items-center justify-center p-4">
+    <div class="rounded-2xl p-6 md:p-8 border backdrop-blur max-w-md w-full text-center" style="border-color: var(--light-brown); background-color: rgba(255,255,255,0.9);">
+      <h2 class="text-2xl font-bold mb-6">Admin Login</h2>
+      <form id="loginForm" class="flex flex-col gap-4">
+        <div class="input">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="color: var(--medium-brown);">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <input type="email" id="username" placeholder="Email" required aria-label="Email" />
+        </div>
+        <div class="input">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="color: var(--medium-brown);">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <input type="password" id="password" placeholder="Password" required aria-label="Password" />
+        </div>
+        <button type="submit" class="btn primary w-full mt-2">Login</button>
+        <p id="loginError" class="text-red-400 text-sm mt-2 hidden">Invalid username or password.</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div id="adminPanel" class="hidden">
+    <!-- Header -->
+    <header class="sticky top-0 z-40 border-b backdrop-blur" style="border-color: var(--light-brown); background-color: rgba(255,255,255,0.85);">
+      <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-xl grid place-items-center shadow-lg" style="background: linear-gradient(135deg, var(--medium-brown), var(--brown));">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="7" r="4" stroke="white" stroke-width="1.4"/>
+            </svg>
+          </div>
+          <div class="leading-tight">
+            <div class="text-lg font-semibold tracking-wide">NoteFlow Admin</div>
+            <div class="text-xs" style="color: var(--medium-brown);">Manage Library Content</div>
+          </div>
+        </div>
+        <button id="logoutBtn" class="btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- Admin Controls -->
+    <section class="max-w-7xl mx-auto px-4 py-10 md:py-14">
+      <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight mb-6">
+        Manage Notes
+      </h1>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <button id="addNoteBtn" class="btn primary w-full">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Add New Note
+        </button>
+        <div class="grid grid-cols-2 gap-4">
+          <button id="exportNotesBtn" class="btn w-full">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M12 17V3M17 12l-5 5-5-5M4 21h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Export All
+          </button>
+          <button id="clearAllNotesBtn" class="btn danger w-full">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M10 11v6M14 11v6M4 7h16M6 7l1.63-2.445A2 2 0 0 1 9.24 4h5.52a2 2 0 0 1 1.61 0.555L18 7M18 7v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Clear All
+          </button>
+        </div>
+      </div>
+
+      <div class="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8"></div>
+
+      <h2 class="text-2xl font-bold mb-4">Existing Notes</h2>
+      <div id="adminNotesGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <!-- Notes will be loaded here -->
+      </div>
+      <p id="noNotesMessage" class="text-center py-10 hidden" style="color: var(--medium-brown);">No notes available. Add some!</p>
+    </section>
+
+    <footer class="border-t py-10 text-center text-sm" style="border-color: var(--light-brown); color: var(--medium-brown);">
+      NoteFlow Admin Panel.
+    </footer>
+  </div>
+
+  <!-- Add/Edit Note Modal -->
+  <div id="noteModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="noteModalTitle">
+    <div class="modal-card">
+      <div class="px-6 py-4 border-b flex items-start justify-between gap-4" style="border-color: var(--light-brown);">
+        <div>
+          <h2 id="noteModalTitle" class="text-xl font-semibold">Add New Note</h2>
+        </div>
+        <button id="noteModalClose" class="btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          Close
+        </button>
+      </div>
+      <div class="modal-body p-6">
+        <form id="noteForm" class="grid md:grid-cols-2 gap-6">
+          <div class="flex flex-col gap-4">
+            <input type="hidden" id="noteId" />
+            <label class="block">
+              <span class="text-sm mb-1 block" style="color: var(--medium-brown);">Title</span>
+              <div class="input">
+                <input type="text" id="noteTitle" placeholder="Note Title" required />
+              </div>
+            </label>
+            <label class="block">
+              <span class="text-sm mb-1 block" style="color: var(--medium-brown);">Class</span>
+              <div class="input">
+                <input type="text" id="noteClass" placeholder="e.g., Mathematics, Physics" required />
+              </div>
+            </label>
+            <label class="block">
+              <span class="text-sm mb-1 block" style="color: var(--medium-brown);">Tags (comma-separated, max 6)</span>
+              <div class="input">
+                <input type="text" id="noteTags" placeholder="e.g., calculus, limits, functions" />
+              </div>
+              <div class="flex items-center justify-between mt-1">
+                <span id="tagCount" class="text-xs" style="color: var(--medium-brown);">0/6 tags</span>
+                <span id="tagError" class="text-xs text-red-400 hidden">Maximum 6 tags allowed</span>
+              </div>
+              <div id="suggestedTags" class="mt-2 hidden">
+                <div class="text-xs mb-2" style="color: var(--medium-brown);">Suggested tags:</div>
+                <div id="suggestedTagsList" class="flex flex-wrap gap-1"></div>
+              </div>
+            </label>
+            <label class="block">
+              <span class="text-sm mb-1 block" style="color: var(--medium-brown);">Short Description</span>
+              <div class="input">
+                <textarea id="noteDescription" rows="3" placeholder="A brief summary of the note content" required></textarea>
+              </div>
+            </label>
+            <label class="block">
+              <span class="text-sm mb-1 block" style="color: var(--medium-brown);">Image URL</span>
+              <div class="input">
+                <input type="url" id="noteImage" placeholder="https://example.com/image.png" />
+              </div>
+            </label>
+            <label class="block">
+              <span class="text-sm mb-1 block" style="color: var(--medium-brown);">File URL (external)</span>
+              <div class="input">
+                <input type="url" id="noteFileUrl" placeholder="https://drive.google.com/..." />
+              </div>
+            </label>
+          </div>
+          <div class="flex flex-col gap-4">
+            <div class="image-wrap rounded-xl overflow-hidden h-48 flex-shrink-0">
+              <img id="noteImagePreview" src="" alt="Image preview" class="hidden" onerror="this.style.display='none'; this.closest('.image-wrap').classList.add('img-fallback');" />
+              <div class="fallback-graphic"><div class="chip">Image Preview</div></div>
+            </div>
+          </div>
+          <div class="md:col-span-2 flex justify-end gap-4 pt-4">
+            <button type="button" id="cancelNoteBtn" class="btn">Cancel</button>
+            <button type="submit" class="btn primary">Save Note</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Supabase Admin Panel Implementation ---
+
+    // Auth + routing
+    const loginPanel = document.getElementById('loginPanel');
+    const adminPanel = document.getElementById('adminPanel');
+    const loginForm = document.getElementById('loginForm');
+    const usernameInput = document.getElementById('username'); // treat as email
+    const passwordInput = document.getElementById('password');
+    const loginError = document.getElementById('loginError');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // Admin elements
+    const adminNotesGrid = document.getElementById('adminNotesGrid');
+    const noNotesMessage = document.getElementById('noNotesMessage');
+    const addNoteBtn = document.getElementById('addNoteBtn');
+    const exportNotesBtn = document.getElementById('exportNotesBtn');
+    const clearAllNotesBtn = document.getElementById('clearAllNotesBtn');
+
+    // Modal elements
+    const noteModal = document.getElementById('noteModal');
+    const noteModalTitle = document.getElementById('noteModalTitle');
+    const noteModalClose = document.getElementById('noteModalClose');
+    const noteForm = document.getElementById('noteForm');
+    const noteIdInput = document.getElementById('noteId');
+    const noteTitleInput = document.getElementById('noteTitle');
+    const noteClassInput = document.getElementById('noteClass');
+    const noteTagsInput = document.getElementById('noteTags');
+    const noteDescriptionInput = document.getElementById('noteDescription');
+    const noteImageInput = document.getElementById('noteImage');
+    const noteFileUrlInput = document.getElementById('noteFileUrl');
+    const noteImagePreview = document.getElementById('noteImagePreview');
+    const cancelNoteBtn = document.getElementById('cancelNoteBtn');
+
+    // Helpers to show/hide panels
+    function showAdminPanel() {
+      loginPanel.classList.add('hidden');
+      adminPanel.classList.remove('hidden');
+      document.body.style.overflow = '';
+      renderAdminNotes();
+      setupRealtimeAdmin();
+    }
+    function showLoginForm(prefill = true) {
+      loginPanel.classList.remove('hidden');
+      adminPanel.classList.add('hidden');
+      loginError.classList.add('hidden');
+      if (prefill) {
+        // Optional: prefill to speed testing, can be cleared in production
+        // usernameInput.value = '';
+        // passwordInput.value = '';
+      }
+      document.body.style.overflow = 'hidden';
+    }
+
+    async function checkLoginStatus() {
+      try {
+        const { data, error } = await window.supabaseClient.auth.getUser();
+        if (error) throw error;
+        if (data && data.user) {
+          showAdminPanel();
+        } else {
+          showLoginForm();
+        }
+      } catch (e) {
+        console.warn('Auth check failed:', e);
+        showLoginForm(false);
+      }
+    }
+
+    // Login submit (email/password)
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.classList.add('hidden');
+      const email = usernameInput.value.trim();
+      const password = passwordInput.value;
+      try {
+        const { data, error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        showAdminPanel();
+      } catch (err) {
+        console.error('Login failed:', err);
+        loginError.classList.remove('hidden');
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await window.supabaseClient.auth.signOut();
+      } finally {
+        showLoginForm(false);
+      }
+    });
+
+    // React to auth changes
+    window.supabaseClient.auth.onAuthStateChange((_event, session) => {
+      if (session && session.user) {
+        showAdminPanel();
+      } else {
+        showLoginForm(false);
+      }
+    });
+
+    // Realtime channel for admin refresh
+    let adminChannel = null;
+    function setupRealtimeAdmin() {
+      if (adminChannel) return;
+      adminChannel = window.supabaseClient
+        .channel('admin:notes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async () => {
+          try { await renderAdminNotes(); } catch (e) { console.warn('Realtime admin refresh failed:', e); }
+        })
+        .subscribe();
+    }
+
+    // --- Admin Notes CRUD (Supabase via NotesAPI) ---
+
+    async function renderAdminNotes() {
+      adminNotesGrid.innerHTML = '';
+      
+      // Show loading state
+      const loadingEl = document.createElement('div');
+      loadingEl.className = 'text-slate-400 text-center py-10';
+      loadingEl.textContent = 'Loading notes...';
+      adminNotesGrid.appendChild(loadingEl);
+
+      try {
+        const items = await window.NotesAPI.listNotes();
+        
+        // Remove loading indicator
+        adminNotesGrid.innerHTML = '';
+        
+        if (!items || items.length === 0) {
+          noNotesMessage.classList.remove('hidden');
+          return;
+        }
+        noNotesMessage.classList.add('hidden');
+
+        items.forEach(note => {
+          const card = document.createElement('article');
+          card.className = 'note-card will-animate';
+          card.setAttribute('tabindex', '0');
+          card.dataset.noteId = note.id; // Store note ID for easy access
+          
+          const safeTags = (note.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+          const safeTitle = (note.title || 'Untitled').replace(/"/g, '"').replace(/'/g, '&#39;');
+          const safeDescription = (note.description || '').replace(/"/g, '"').replace(/'/g, '&#39;');
+          const safeClass = (note.class || 'General').replace(/"/g, '"').replace(/'/g, '&#39;');
+          
+          card.innerHTML = `
+            <div class="image-wrap">
+              <img src="${note.image || ''}" alt="Cover image for ${safeTitle}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.closest('.image-wrap').classList.add('img-fallback');" />
+              <div class="fallback-graphic"><div class="chip">Image unavailable</div></div>
+            </div>
+            <div class="p-5 flex flex-col gap-4">
+              <header class="flex items-start justify-between gap-3">
+                <h3 class="font-semibold text-lg leading-snug">${safeTitle}</h3>
+                <span class="px-2 py-1 rounded-md text-xs border" style="background-color: rgba(59, 130, 246, 0.15); color: var(--brown); border-color: rgba(59, 130, 246, 0.3);">${safeClass}</span>
+              </header>
+              <p class="text-sm text-slate-400 line-clamp-3">${safeDescription}</p>
+              <div class="flex flex-wrap gap-2">
+                ${safeTags.map(tag => `<span class="tag">${tag.replace(/"/g, '"').replace(/'/g, '&#39;')}</span>`).join('')}
+              </div>
+              <div class="flex items-center gap-2 pt-1">
+                <button class="btn edit-btn" data-id="${note.id}">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Edit
+                </button>
+                <button class="btn danger delete-btn" data-id="${note.id}">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10 11v6M14 11v6M4 7h16M6 7l1.63-2.445A2 2 0 0 1 9.24 4h5.52a2 2 0 0 1 1.61 0.555L18 7M18 7v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Delete
+                </button>
+              </div>
+            </div>
+          `;
+          adminNotesGrid.appendChild(card);
+          
+          // Ensure fallback when image URL is empty or whitespace (onerror doesn't fire for empty src)
+          const wrap = card.querySelector('.image-wrap');
+          const imgEl = wrap?.querySelector('img');
+          if (!((note.image || '').trim())) {
+            if (imgEl) imgEl.style.display = 'none';
+            if (wrap) wrap.classList.add('img-fallback');
+          }
+        });
+
+        // Wire up edit buttons
+        adminNotesGrid.querySelectorAll('.edit-btn').forEach(button => {
+          button.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const id = e.currentTarget.dataset.id;
+            const editBtn = e.currentTarget;
+            const originalText = editBtn.textContent;
+            
+            // Show loading state
+            editBtn.disabled = true;
+            editBtn.innerHTML = '<span class="animate-spin">⟳</span> Loading...';
+            
+            try {
+              const noteToEdit = await window.NotesAPI.getNote(id);
+              if (noteToEdit) {
+                openNoteModal(noteToEdit);
+              } else {
+                throw new Error('Note not found');
+              }
+            } catch (err) {
+              console.error('Failed to load note for editing:', err);
+              showToast('Failed to load note for editing', 'error');
+            } finally {
+              // Restore button state
+              editBtn.disabled = false;
+              editBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Edit
+              `;
+            }
+          });
+        });
+
+        // Wire up delete buttons
+        adminNotesGrid.querySelectorAll('.delete-btn').forEach(button => {
+          button.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const id = e.currentTarget.dataset.id;
+            const card = e.currentTarget.closest('.note-card');
+            const noteTitle = card.querySelector('h3').textContent || 'this note';
+            
+            if (!confirm(`Are you sure you want to delete "${noteTitle}"? This action cannot be undone.`)) {
+              return;
+            }
+            
+            const deleteBtn = e.currentTarget;
+            const originalHTML = deleteBtn.innerHTML;
+            
+            // Show loading state
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<span class="animate-spin">⟳</span> Deleting...';
+            
+            try {
+              await window.NotesAPI.deleteNote(id);
+              showToast('Note deleted successfully');
+              // Remove the card with animation
+              card.style.opacity = '0';
+              card.style.transform = 'scale(0.95)';
+              setTimeout(() => {
+                card.remove();
+                // Check if no notes left
+                if (adminNotesGrid.children.length === 0) {
+                  noNotesMessage.classList.remove('hidden');
+                }
+              }, 200);
+            } catch (err) {
+              console.error('Delete failed:', err);
+              showToast('Failed to delete note', 'error');
+              // Restore button state on error
+              deleteBtn.disabled = false;
+              deleteBtn.innerHTML = originalHTML;
+            }
+          });
+        });
+
+        // Add appear animation
+        setTimeout(() => {
+          adminNotesGrid.querySelectorAll('.will-animate').forEach((card, index) => {
+            setTimeout(() => {
+              card.classList.add('in-view');
+            }, index * 100);
+          });
+        }, 50);
+
+      } catch (err) {
+        console.error('Failed to load notes:', err);
+        adminNotesGrid.innerHTML = '';
+        noNotesMessage.classList.add('hidden');
+        
+        const errorEl = document.createElement('div');
+        errorEl.className = 'text-red-400 text-center py-10';
+        errorEl.innerHTML = `
+          <div class="mb-4">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" class="mx-auto text-red-400">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p class="text-lg font-semibold mb-2">Failed to load notes</p>
+          <p class="text-sm text-slate-500 mb-4">There was an error connecting to the database.</p>
+          <button onclick="renderAdminNotes()" class="btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M20 12a8 8 0 1 1-2.343-5.657" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M20 4v6h-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Try Again
+          </button>
+        `;
+        adminNotesGrid.appendChild(errorEl);
+      }
+    }
+
+    addNoteBtn.addEventListener('click', () => openNoteModal());
+
+    exportNotesBtn.addEventListener('click', async () => {
+      try {
+        const items = await window.NotesAPI.listNotes();
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(items, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute('href', dataStr);
+        downloadAnchorNode.setAttribute('download', 'notes_library.json');
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+      } catch (err) {
+        console.error('Export failed', err);
+        alert('Failed to export notes.');
+      }
+    });
+
+    clearAllNotesBtn.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to delete ALL notes? This action cannot be undone.')) return;
+      try {
+        const items = await window.NotesAPI.listNotes();
+        for (const n of items) {
+          await window.NotesAPI.deleteNote(n.id);
+        }
+        await renderAdminNotes();
+      } catch (err) {
+        console.error('Clear all failed', err);
+        alert('Failed to clear all notes.');
+      }
+    });
+
+    // Toast helper
+    function showToast(message, type = 'success') {
+      let wrap = document.getElementById('toast-wrap');
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'toast-wrap';
+        wrap.className = 'fixed top-4 right-4 z-50';
+        document.body.appendChild(wrap);
+      }
+      const el = document.createElement('div');
+      el.className = 'mt-2 px-4 py-2 rounded-lg shadow-lg border ' + (type === 'error' ? 'bg-rose-500/20 border-rose-400/30 text-rose-200' : 'bg-emerald-500/20 border-emerald-400/30 text-emerald-200');
+      el.textContent = message;
+      wrap.appendChild(el);
+      setTimeout(() => el.remove(), 2500);
+    }
+
+    // --- Modal Logic ---
+    function openNoteModal(note = null) {
+      noteModal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+
+      if (note) {
+        noteModalTitle.textContent = 'Edit Note';
+        noteIdInput.value = note.id || '';
+        noteTitleInput.value = note.title || '';
+        noteClassInput.value = note.class || '';
+        noteTagsInput.value = note.tags || '';
+        noteDescriptionInput.value = note.description || '';
+        noteImageInput.value = note.image || '';
+        noteFileUrlInput.value = note.fileUrl || '';
+      } else {
+        noteModalTitle.textContent = 'Add New Note';
+        noteForm.reset();
+        noteIdInput.value = '';
+      }
+      updateImagePreview();
+      updateTagCount(); // Initialize tag counter
+    }
+
+    function closeNoteModal() {
+      noteModal.classList.remove('open');
+      document.body.style.overflow = '';
+      noteImagePreview.src = '';
+      noteImagePreview.classList.add('hidden');
+      noteImagePreview.closest('.image-wrap').classList.remove('img-fallback');
+    }
+
+    noteModalClose.addEventListener('click', closeNoteModal);
+    cancelNoteBtn.addEventListener('click', closeNoteModal);
+    noteModal.addEventListener('click', (e) => { if (e.target === noteModal) closeNoteModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && noteModal.classList.contains('open')) closeNoteModal(); });
+
+    noteImageInput.addEventListener('input', updateImagePreview);
+
+    // Tag validation and counting
+    const tagCountElement = document.getElementById('tagCount');
+    const tagErrorElement = document.getElementById('tagError');
+
+    function updateTagCount() {
+      const tagsValue = noteTagsInput.value.trim();
+      const tags = tagsValue ? tagsValue.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const tagCount = tags.length;
+      
+      // Update counter
+      tagCountElement.textContent = `${tagCount}/6 tags`;
+      
+      // Show/hide error and update styling
+      if (tagCount > 6) {
+        tagErrorElement.classList.remove('hidden');
+        tagCountElement.style.color = '#ef4444'; // red color
+        noteTagsInput.closest('.input').style.borderColor = '#ef4444';
+        return false; // Invalid
+      } else {
+        tagErrorElement.classList.add('hidden');
+        tagCountElement.style.color = 'var(--medium-brown)';
+        noteTagsInput.closest('.input').style.borderColor = 'var(--light-brown)';
+        return true; // Valid
+      }
+    }
+
+    function validateAndLimitTags() {
+      const tagsValue = noteTagsInput.value.trim();
+      if (!tagsValue) {
+        updateTagCount();
+        return;
+      }
+
+      const tags = tagsValue.split(',').map(t => t.trim()).filter(Boolean);
+      
+      if (tags.length > 6) {
+        // Limit to first 6 tags
+        const limitedTags = tags.slice(0, 6);
+        noteTagsInput.value = limitedTags.join(', ');
+        showToast('Limited to maximum 6 tags', 'error');
+      }
+      
+      updateTagCount();
+    }
+
+    noteTagsInput.addEventListener('input', validateAndLimitTags);
+    noteTagsInput.addEventListener('blur', validateAndLimitTags);
+
+    function updateImagePreview() {
+      const imageUrl = noteImageInput.value.trim();
+      const wrap = noteImagePreview.closest('.image-wrap');
+      if (!imageUrl) {
+        noteImagePreview.src = '';
+        noteImagePreview.classList.add('hidden');
+        wrap.classList.add('img-fallback');
+        return;
+      }
+      // Assign handlers before setting src to ensure they fire
+      noteImagePreview.onload = () => {
+        noteImagePreview.classList.remove('hidden');
+        wrap.classList.remove('img-fallback');
+      };
+      noteImagePreview.onerror = () => {
+        noteImagePreview.classList.add('hidden');
+        wrap.classList.add('img-fallback');
+      };
+      noteImagePreview.src = imageUrl;
+    }
+
+    noteForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Validate required fields
+      const title = noteTitleInput.value.trim();
+      const noteClass = noteClassInput.value.trim();
+      const description = noteDescriptionInput.value.trim();
+
+      if (!title) {
+        showToast('Title is required', 'error');
+        noteTitleInput.focus();
+        return;
+      }
+
+      if (!noteClass) {
+        showToast('Class is required', 'error');
+        noteClassInput.focus();
+        return;
+      }
+
+      if (!description) {
+        showToast('Description is required', 'error');
+        noteDescriptionInput.focus();
+        return;
+      }
+
+      const payload = {
+        title: title,
+        class: noteClass,
+        tags: noteTagsInput.value.trim(),
+        description: description,
+        image: noteImageInput.value.trim(),
+        fileUrl: noteFileUrlInput.value.trim()
+      };
+
+      const submitBtn = noteForm.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="animate-spin">⟳</span> Saving...';
+
+      try {
+        const id = noteIdInput.value.trim();
+        let savedNote;
+        
+        if (id) {
+          // Update existing note
+          savedNote = await window.NotesAPI.updateNote(id, payload);
+          showToast('Note updated successfully');
+        } else {
+          // Create new note
+          savedNote = await window.NotesAPI.createNote(payload);
+          showToast('Note created successfully');
+        }
+        
+        closeNoteModal();
+        
+        // Refresh the notes display
+        await renderAdminNotes();
+        
+      } catch (err) {
+        console.error('Save failed:', err);
+        let errorMessage = 'Failed to save note';
+        
+        // Handle specific error types
+        if (err.message) {
+          if (err.message.includes('duplicate')) {
+            errorMessage = 'A note with this title already exists';
+          } else if (err.message.includes('network')) {
+            errorMessage = 'Network error. Please check your connection';
+          } else if (err.message.includes('unauthorized')) {
+            errorMessage = 'You are not authorized to perform this action';
+          }
+        }
+        
+        showToast(errorMessage, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
+    });
+
+    // --- Initial load ---
+    checkLoginStatus();
+  </script>
+</body>
+</html>
